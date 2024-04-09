@@ -16,11 +16,52 @@ class LeNet(nn.Module):
     def __init__(self, input_shape=(32, 32), num_classes=100):
         super(LeNet, self).__init__()
         # certain definitions
+        # 3 input image channel (color), 6 output channels, 5x5 square convolution
+        self.Conv2d1 = nn.Conv2d(3, 6, 5)
+        self.Conv2d2 = nn.Conv2d(6, 16, 5)
+        #y = Wx + b
+        self.fc1 = nn.Linear(16*5*5, 256) #32x32 dimension
+        self.fc2 = nn.Linear(256, 128) 
+        self.fc3 = nn.Linear(128, num_classes) #Output is num_classes
+        #Max_Pool layer (kernal size = 2, stride = 2)
+        self.maxpool = nn.MaxPool2d(2,2)
+        #Flatten
+        self.flat = nn.Flatten()
+        #Relu
+        self.relu = nn.ReLU()
 
     def forward(self, x):
         shape_dict = {}
         # certain operations
-        return out, shape_dict
+        # Stage 1
+        x = self.Conv2d1(x)
+        x = self.relu(x)
+        x = self.maxpool(x)
+        shape_dict[1] = list(x.size()) # Add stage 1 into dict
+
+        # Stage 2
+        x = self.Conv2d2(x)
+        x = self.relu(x)
+        x = self.maxpool(x)
+        shape_dict[2] = list(x.size()) # Add stage 2 into dict
+
+        x = self.flat(x) # Flatten it (stage 3)
+        shape_dict[3] = list(x.size()) # Add stage 3 into dict
+
+        # Stage 4
+        x = self.fc1(x)
+        x = self.relu(x)
+        shape_dict[4] = list(x.size()) # Add stage 4 into dict
+
+        # Stage 5
+        x = self.fc2(x)
+        x = self.relu(x)
+        shape_dict[5] = list(x.size()) # Add stage 5 into dict
+
+        x = self.fc3(x) # Stage 6
+        shape_dict[6] = list(x.size()) # Add stage 6 into dict
+        
+        return x, shape_dict
 
 
 def count_model_params():
@@ -29,6 +70,9 @@ def count_model_params():
     '''
     model = LeNet()
     model_params = 0.0
+
+    model_params = sum(i.numel() for i in model.parameters() if i.requires_grad)
+    model_params /= 1e6
 
     return model_params
 
