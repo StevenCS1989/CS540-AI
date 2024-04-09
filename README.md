@@ -4,10 +4,6 @@ HW2 - Probabilistic Language Identification
 
 HW3 - Principal Component Analysis (PCA)
 
-HW4 - Hierarchical Agglomerative Clustering
-
-HW5 - Linear Regression
-
 HW6 - Neural Networks (NN)
 
 HW7 - Convolutional Neural Network (CNN)
