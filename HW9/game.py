@@ -1,6 +1,6 @@
-import copy
-import numpy as np
 import random
+import copy
+
 
 class TeekoPlayer:
     """ An object representation for an AI game player for the game Teeko.
@@ -15,60 +15,433 @@ class TeekoPlayer:
         self.my_piece = random.choice(self.pieces)
         self.opp = self.pieces[0] if self.my_piece == self.pieces[1] else self.pieces[1]
 
-    def piecesPosition(self,state):
-        b = [] # Array for black piece positions
-        r = [] # Array for red piece positions
-
-        for row in range(5):
-            for col in range(5):
-                # Check if position is black or red
-                if state[row][col] == 'b':
-                    b.append((row,col))
-                elif state[row][col] == 'r':
-                    r.append((row,col))
+    # Helper method to check if is in drop phase
+    def check_drop(self, state):
+        count = 0
+        #Traverse through each row and column
+        for row in range(len(state)):
+            for col in range(len(state[row])):
+                # Check if it's red or black
+                if state[row][col] == 'r' or state[row][col] == 'b':
+                    count += 1 # Increment count
         
-        return b,r
-    
+        # Check if count is greater than or equal to 8
+        if (count >= 8):
+            return False # False if it is
+        else:
+            return True # True if it isn't
+
+    # Return a list of successors that takes in board state
+    def succ(self, state, marker):
+        # List of successors
+        succ = []
+
+        # Check if it's in drop phase
+        drop_phase = self.check_drop(state)
+
+        if drop_phase:
+            # Traverse through every row and col
+            for row in range(len(state)):
+                for col in range(len(state[row])):
+                    # Check if it's empty
+                    if state[row][col] == ' ':
+                        # Copy the state and append
+                        temp = copy.deepcopy(state)
+                        temp[row][col] = marker
+                        succ.append(temp)
+        else:
+            # Traverse through every row and col
+            for row in range(len(state)):
+                for col in range(len(state[row])):
+                    # Move markers
+                    if state[row][col] == marker:
+                        # Down
+                        temp = copy.deepcopy(state)
+                        if row + 1 < len(temp) and temp[row + 1][col] == ' ':
+                            temp[row][col] = ' '
+                            temp[row + 1][col] = marker
+                            succ.append(temp)
+
+                        # Up
+                        temp = copy.deepcopy(state)
+                        if row - 1 >= 0 and temp[row - 1][col] == ' ':
+                            temp[row][col] = ' '
+                            temp[row - 1][col] = marker
+                            succ.append(temp)
+
+                        # Right
+                        temp = copy.deepcopy(state)
+                        if col + 1 < len(temp) and temp[row][col + 1] == ' ':
+                            temp[row][col] = ' '
+                            temp[row][col + 1] = marker
+                            succ.append(temp)
+
+                        # Left
+                        temp = copy.deepcopy(state)
+                        if col - 1 >= 0 and temp[row][col - 1] == ' ':
+                            temp[row][col] = ' '
+                            temp[row][col - 1] = marker
+                            succ.append(temp)
+
+                        # BL
+                        temp = copy.deepcopy(state)
+                        if row + 1 < len(temp) and col - 1 >= 0 and temp[row + 1][col - 1] == ' ':
+                            temp[row][col] = ' '
+                            temp[row + 1][col - 1] = marker
+                            succ.append(temp)
+
+                        # BR
+                        temp = copy.deepcopy(state)
+                        if row + 1 < len(temp) and col + 1 < len(temp) and temp[row + 1][col + 1] == ' ':
+                            temp[row][col] = ' '
+                            temp[row + 1][col + 1] = marker
+                            succ.append(temp)
+
+                        # TL
+                        temp = copy.deepcopy(state)
+                        if row - 1 >= 0 and col - 1 >= 0 and temp[row - 1][col - 1] == ' ':
+                            temp[row][col] = ' '
+                            temp[row - 1][col - 1] = marker
+                            succ.append(temp)
+
+                        # TR
+                        temp = copy.deepcopy(state)
+                        if row - 1 >= 0 and col + 1 < len(temp) and temp[row - 1][col + 1] == ' ':
+                            temp[row][col] = ' '
+                            temp[row - 1][col + 1] = marker
+                            succ.append(temp)
+
+        return succ
+
+    # Helper method to calculate heuristic value for horizontal
+    def cal_hor(self, state, marker):
+        max = 0
+        count = 0
+        
+        # Traverse through every row and col
+        for row in range(len(state)):
+            jump = False
+            for col in range(len(state) - 1):
+                # Check if it's equal to a marker
+                if state[row][col] == marker:
+                    count += 1 # Increment count
+                    n = 0
+
+                    # While spot to the right is equal
+                    while state[row][col] == state[row][col + 1]:
+                        count += 1 # Increment count 
+                        col += 1 # Go to next column
+                        n += 1
+
+                        # Check if n is greater than or equal to 3
+                        if n >= 3:
+                            return count / 4
+                        
+                        # Check if column is out of bounds
+                        if col >= len(state) - 1:
+                            jump = True
+                            break
+                
+                # Check if max is less than count
+                if max < count:
+                    max = count
+                count = 0
+
+                # Check if jump is true or not
+                if jump:
+                    break
+
+        return max / 4
+
+    # Helper method to calculate heuristic value for vertical
+    def cal_ver(self, state, marker):
+        max = 0
+        count = 0
+
+        # Traverse through every row and col
+        for col in range(len(state)):
+            jump = False
+            for row in range(len(state) - 1):
+                # Check if there is a marker
+                if state[row][col] == marker:
+                    count += 1
+                    n = 0
+
+                    # While the next row is equal
+                    while state[row][col] == state[row + 1][col]:
+                        count += 1 # Increment count
+                        row += 1 # Increment row
+                        n += 1
+
+                        # Check if n is greater than or equal to 3
+                        if n >= 3:
+                            return count / 4
+                        
+                        # Check if row is out of bounds
+                        if row >= len(state) - 1:
+                            jump = True
+                            break
+
+                # Check if max is less than count
+                if max < count:
+                    max = count
+                count = 0
+
+                # Check if jump is true or not
+                if jump:
+                    break
+
+        return max / 4
+
+    # Helper method to calculate heuristic value for diagonal /
+    def cal_dia_right(self, state, marker):
+        max = 0
+        count = 0
+
+        # Traverse through every row and col
+        for row in range(len(state) - 1):
+            jump = False
+            for col in range(len(state) - 1):
+                # Check if there is a marker
+                if state[row][col] == marker:
+                    count += 1 # Increment count
+                    n = 0
+
+                    # While the BR is equal
+                    while state[row][col] == state[row + 1][col + 1]:
+                        count += 1 # Increment count
+                        row += 1 # Increment row
+                        col += 1 # Increment column
+                        n += 1
+
+                        # Check if n is greater than or equal to 3
+                        if n >= 3:
+                            return count / 4
+                        
+                        # Check if col or row is out of bounds
+                        if col >= len(state) - 1 or row >= len(state) - 1:
+                            jump = True
+                            break
+
+                # Check if max is less than count
+                if max < count:
+                    max = count
+                count = 0
+
+                # Check if jump is true or nto
+                if jump:
+                    break
+
+        return max / 4
+
+    # Helper method to calculate heuristic value for diagonal \
+    def cal_dia_left(self, state, marker):
+        max = 0
+        count = 0
+        for i in range(2, len(state)):
+            jump = False
+            for j in range(len(state) - 1):
+                if state[i][j] == marker:
+                    count = count + 1
+                    n = 0
+                    while state[i][j] == state[i - 1][j + 1]:
+                        count = count + 1
+                        i = i - 1
+                        j = j + 1
+                        n = n + 1
+                        if n >= 3:
+                            return count / 4
+                        if i < 0 or j >= len(state) - 1:
+                            jump = True
+                            break
+                if max < count:
+                    max = count
+                count = 0
+                if jump:
+                    break
+        return max / 4
+
+    # Helper method to calculate heuristic value for square
+    def cal_square(self, state, marker):
+        max = 0
+        count = 0
+
+        # Traverse through the first 4 rows and cols
+        for row in range(len(state) - 1):
+            for col in range(len(state) - 1):
+                # Check if there is a marker and increment if there is at every spot
+                if state[row][col] == marker:
+                    count += 1 
+                if state[row][col + 1] == marker:
+                    count += 1
+                if state[row + 1][col] == marker:
+                    count += 1
+                if state[row + 1][col + 1] == marker:
+                    count += 1
+                
+                # Check if max is less than count
+                if max < count:
+                    max = count
+
+                count = 0
+
+        return max / 4
+
+    # Calculate heuristic value for current state
+    def heuristic_game_value(self, state):
+        # check if is terminal state
+        terminal = self.game_value(state)
+        if terminal == 1 or terminal == -1:
+            return terminal, state
+
+        my = []
+        opp = []
+
+        # heuristic of my
+        my.append(self.cal_hor(state, self.my_piece))
+        my.append(self.cal_ver(state, self.my_piece))
+        my.append(self.cal_dia_left(state, self.my_piece))
+        my.append(self.cal_dia_right(state, self.my_piece))
+        my.append(self.cal_square(state, self.my_piece))
+
+        # heuristic of opp
+        opp.append(self.cal_hor(state, self.opp))
+        opp.append(self.cal_ver(state, self.opp))
+        opp.append(self.cal_dia_left(state, self.opp))
+        opp.append(self.cal_dia_right(state, self.opp))
+        opp.append(self.cal_square(state, self.opp))
+
+        max_score = max(my) # Get max score (player)
+        min_score = max(opp) # Get min score (AI)
+
+        return max_score + (-1) * min_score, state
+
+    # Find the max heuristic value in the given depth, which is 2 here
+    # Return if it is a terminal state
+    def Max_Value(self, state, depth):
+        max_state = copy.deepcopy(state) # Copy state
+
+        # Check if the game value is not 0
+        if self.game_value(state) != 0:
+            return self.game_value(state), state
+
+        # Check if depth is greater than 2
+        if depth > 2:
+            return self.heuristic_game_value(state)
+        else:
+            a = float('-Inf')
+
+            # Loop through all possible states
+            for s in self.succ(state, self.my_piece):
+                # Check if the game_value is not 0
+                if self.game_value(s) != 0:
+                    return self.game_value(s), s
+                
+                val, curr = self.Min_Value(s, depth + 1) # Get min value
+
+                # Check if min value is greater than a
+                if val > a:
+                    a = val
+                    max_state = s
+
+        return a, max_state
+
+    # Find the min heuristic value in the given depth, which is 2 here
+    # Return if it is a terminal state
+    def Min_Value(self, state, depth):
+        min_state = copy.deepcopy(state) # Copy state
+
+        # Check if game_value is not 0
+        if self.game_value(state) != 0:
+            return self.game_value(state), state
+
+        # Check if depth is greater than 2
+        if depth > 2:
+            return self.heuristic_game_value(state)
+        else:
+            b = float('Inf')
+
+            # Traverse through every possible successor
+            for s in self.succ(state, self.opp):
+                # Check if game_value is not 0
+                if self.game_value(s) != 0:
+                    return self.game_value(s), s
+                
+
+                val, curr = self.Max_Value(s, depth + 1) # Get max value
+
+                # Check if max value is less than b
+                if val < b:
+                    b = val
+                    min_state = s
+
+        return b, min_state
+
+    # Helper methods to find different position in two states
+    def state_diff(self, state, next):
+        pos = []
+        for i in range(5):
+            for j in range(5):
+                if state[i][j] != next[i][j]:
+                    dif = [i, j]
+                    pos.append(dif)
+        return pos
+
     def make_move(self, state):
-        drop_phase = True
+        """ Selects a (row, col) space for the next move. You may assume that whenever
+        this function is called, it is this player's turn to move.
+        Args:
+            state (list of lists): should be the current state of the game as saved in
+                this Teeko2Player object. Note that this is NOT assumed to be a copy of
+                the game state and should NOT be modified within this method (use
+                place_piece() instead). Any modifications (e.g. to generate successors)
+                should be done on a deep copy of the state.
+                In the "drop phase", the state will contain less than 8 elements which
+                are not ' ' (a single space character).
+        Return:
+            move (list): a list of move tuples such that its format is
+                    [(row, col), (source_row, source_col)]
+                where the (row, col) tuple is the location to place a piece and the
+                optional (source_row, source_col) tuple contains the location of the
+                piece the AI plans to relocate (for moves after the drop phase). In
+                the drop phase, this list should contain ONLY THE FIRST tuple.
+        Note that without drop phase behavior, the AI will just keep placing new markers
+            and will eventually take over the board. This is not a valid strategy and
+            will earn you no points.
+        """
 
-        numB = sum((i.count('b') for i in state))
-        numR = sum((i.count('r') for i in state))
-        if numB >= 4 and numR >= 4:
-            drop_phase = False
+        drop_phase = self.check_drop(state)  # Detect drop phase
 
-        move = []
         if not drop_phase:
-            value, best_state = self.max_value(state, 0)
+            move = []
+            a, next = self.Max_Value(state, 0)
+            pos = self.state_diff(state, next)
 
-            arr1 = np.array(state) == np.array(best_state)
-            arr2 = np.where(arr1 == False) # check difference between succ and curr state
-
-            if state[arr2[0][0]][arr2[1][0]] == ' ': # find original to define move
-                (old_row, old_col) = (arr2[0][1],arr2[1][1])
-                (row,col) = (arr2[0][0], arr2[1][0])
+            # Find previous position
+            if state[pos[0][0]][pos[0][1]] == ' ':
+                (pre_row, pre_col) = (pos[1][0], pos[1][1])
+                (row, col) = (pos[0][0], pos[0][1])
             else:
-                (old_row, old_col) = (arr2[0][0], arr2[1][0])
-                (row, col) = (arr2[0][1], arr2[1][1])
+                (pre_row, pre_col) = (pos[0][0], pos[0][1])
+                (row, col) = (pos[1][0], pos[1][1])
 
             move.insert(0, (row, col))
-            move.insert(1, (old_row, old_col))  # move for after drop phase
-
+            move.insert(1, (pre_row, pre_col))
             return move
 
-        value, best_state = self.max_value(state,0)
+        move = []
+        a, next = self.Max_Value(state, 0)
+        pos = self.state_diff(state, next)
+        (row, col) = (pos[0][0], pos[0][1])
 
-        arr1 = np.array(state) == np.array(best_state)
-        arr2 = np.where(arr1 == False) # check difference between succ and curr state
+        while not state[row][col] == ' ':
+            (row, col) = (pos[0][0], pos[0][1])
 
-        (row,col) = (arr2[0][0], arr2[1][0])
-        while not state[row][col] == ' ': # find original to define move
-            (row, col) = (arr2[0][0], arr2[1][0])
-
-        move.insert(0, (row,col))  # move for drop phase
+        # Ensure the destination (row,col) tuple is at the beginning of the move list
+        move.insert(0, (row, col))
 
         return move
-    
+
     def opponent_move(self, move):
         """ Validates the opponent's next move against the internal board representation.
         You don't need to touch this code.
@@ -128,25 +501,24 @@ class TeekoPlayer:
 
     def game_value(self, state):
         """ Checks the current board status for a win condition
-
         Args:
         state (list of lists): either the current state of the game as saved in
-            this TeekoPlayer object, or a generated successor state.
-
+            this Teeko2Player object, or a generated successor state.
         Returns:
-            int: 1 if this TeekoPlayer wins, -1 if the opponent wins, 0 if no winner
+            int: 1 if this Teeko2Player wins, -1 if the opponent wins, 0 if no winner
         """
         # check horizontal wins
         for row in state:
             for i in range(2):
-                if row[i] != ' ' and row[i] == row[i+1] == row[i+2] == row[i+3]:
-                    return 1 if row[i]==self.my_piece else -1
+                if row[i] != ' ' and row[i] == row[i + 1] == row[i + 2] == row[i + 3]:
+                    return 1 if row[i] == self.my_piece else -1
 
         # check vertical wins
         for col in range(5):
             for i in range(2):
-                if state[i][col] != ' ' and state[i][col] == state[i+1][col] == state[i+2][col] == state[i+3][col]:
-                    return 1 if state[i][col]==self.my_piece else -1
+                if state[i][col] != ' ' and state[i][col] == state[i + 1][col] == state[i + 2][col] == state[i + 3][
+                        col]:
+                    return 1 if state[i][col] == self.my_piece else -1
 
         # check \ diagonal wins
         for row in range(2):
@@ -165,291 +537,8 @@ class TeekoPlayer:
             for i in range(4):
                 if state[row][i] != ' ' and state[row][i] == state[row][i + 1] == state[row + 1][i] == state[row + 1][i + 1]:
                     return 1 if state[row][i] == self.my_piece else -1
-                
+
         return 0  # no winner yet
-    
-    def succ(self, state, piece):
-        self.game_value(state)
-        mine = piece
-        succ = []
-        drop_phase = True  # TODO: detect drop phase
-
-        numB = sum((i.count('b') for i in state))
-        numR = sum((i.count('r') for i in state))
-        if numB >= 4 and numR >= 4:
-            drop_phase = False
-
-        if not drop_phase:
-            for row in range(len(state)):
-                for col in range(len(state)):
-                    if state[row][col] == piece:
-                        succ.insert(0, self.up(state, row, col)) # (row-1)(col)
-                        succ.insert(1, self.down(state, row, col)) # (row+1)(col)
-                        succ.insert(2, self.left(state, row, col)) # (row)(col-1)
-                        succ.insert(3, self.right(state, row, col)) #
-                        succ.insert(4, self.topleft(state, row, col))
-                        succ.insert(5, self.topright(state, row, col))
-                        succ.insert(6, self.bottomleft(state, row, col))
-                        succ.insert(7, self.bottomright(state, row, col))
-            return list(filter(None, succ))
-
-        for row in range(len(state)):
-            for col in range(len(state)):
-                new = copy.deepcopy(state)
-                if new[row][col] == ' ':
-                    new[row][col] = piece
-                    succ.append(new)
-        return list(filter(None, succ))
-
-    def heuristic_game_value(self, state, piece): 
-        b,r = self.piecesPosition(state) # Get black and red piece positions
-
-        mine, oppo = '', '' # Set "my" piece and "opponent's" piece variables
-
-        # Check if "my" piece is black or red
-        if piece == 'b':
-            mine, oppo = 'b', 'r'
-        elif piece == 'r':
-            mine, oppo = 'r', 'b'
-
-        # for horizontal
-        mymax = 0
-        oppmax = 0
-        mycnt = 0
-        oppcnt = 0
-
-        for i in range(len(state)):
-            for j in range(len(state)):
-                # If the position is my piece then increment mycnt
-                if state[i][j] == mine:
-                    mycnt += 1
-
-            if mycnt > mymax:
-                mymax = mycnt
-            mycnt = 0
-
-        i=0
-        j=0
-        for i in range(len(state)):
-            for j in range(len(state)):
-                if state[i][j] == oppo:
-                    oppcnt += 1
-            if oppcnt > oppmax:
-                oppmax = oppcnt
-            oppcnt = 0
-
-        # for vertical
-        for i in range(len(state)):
-            for j in range(len(state)):
-                if state[j][i] == mine:
-                    mycnt += 1
-            if mycnt > mymax:
-                mymax = mycnt
-            mycnt = 0
-
-        i=0
-        j=0
-        for i in range(len(state)):
-            for j in range(len(state)):
-                if state[j][i] == oppo:
-                    oppcnt += 1
-            if oppcnt > oppmax:
-                oppmax = oppcnt
-            oppcnt = 0
-
-        # for / diagonal
-        mycnt = 0
-        oppcnt = 0
-
-        for row in range(3, 5):
-            for i in range(2):
-                if state[row][i] == mine:
-                    mycnt += 1
-                if state[row - 1][i + 1] == mine:
-                    mycnt += 1
-                if state[row - 2][i + 2] == mine:
-                    mycnt += 1
-                if state[row - 3][i + 3] == mine:
-                    mycnt += 1
-
-                if mycnt > mymax:
-                    mymax = mycnt
-                mycnt = 0
-
-        row = 0
-        i= 0
-        for row in range(3, 5):
-            for i in range(2):
-                if state[row][i] == oppo:
-                    oppcnt += 1
-                if state[row - 1][i + 1] == oppo:
-                    oppcnt += 1
-                if state[row - 2][i + 2] == oppo:
-                    oppcnt += 1
-                if state[row - 3][i + 3] == oppo:
-                    oppcnt += 1
-                if oppcnt > oppmax:
-                    oppmax = oppcnt
-                oppcnt = 0
-
-        # for \ diagonal
-        mycnt = 0
-        oppcnt = 0
-        row = 0
-        i = 0
-        for row in range(2):
-            for i in range(2):
-                if state[row][i] == mine:
-                    mycnt += 1
-                if state[row + 1][i + 1] == mine:
-                    mycnt += 1
-                if state[row + 2][i + 2] == mine:
-                    mycnt += 1
-                if state[row + 3][i + 3] == mine:
-                    mycnt += 1
-                if mycnt > mymax:
-                    mymax = mycnt
-                mycnt = 0
-
-        row = 0
-        i = 0
-        for row in range(2):
-            for i in range(2):
-                if state[row][i] == oppo:
-                    oppcnt += 1
-                if state[row + 1][i + 1] == oppo:
-                    oppcnt += 1
-                if state[row + 2][i + 2] == oppo:
-                    oppcnt += 1
-                if state[row + 3][i + 3] == oppo:
-                    oppcnt += 1
-                if oppcnt > oppmax:
-                    oppmax = oppcnt
-                oppcnt = 0
-
-        # for 2X2
-        mycnt = 0
-        oppcnt = 0
-        row = 0
-        i = 0
-        for row in range(4):
-            for i in range(4):
-                if state[row][i] == mine:
-                    mycnt += 1
-                if state[row][i + 1] == mine:
-                    mycnt += 1
-                if state[row + 1][i] == mine:
-                    mycnt += 1
-                if state[row + 1][i + 1]== mine:
-                    mycnt += 1
-                if mycnt > mymax:
-                    mymax = mycnt
-                mycnt = 0
-
-        row = 0
-        i = 0
-        for row in range(4):
-            for i in range(4):
-                if state[row][i] == oppo:
-                    oppcnt += 1
-                if state[row][i + 1] == oppo:
-                    oppcnt += 1
-                if state[row + 1][i] == oppo:
-                    oppcnt += 1
-                if state[row + 1][i + 1]== oppo:
-                    oppcnt += 1
-                if oppcnt > oppmax:
-                    oppmax = oppcnt
-                oppcnt = 0
-
-        if mymax == oppmax:
-            return 0, state
-        if mymax >= oppmax:
-            return 0.5, state # if mine is longer than opponent, return positive float
-
-        return -0.5, state # if opponent is longer than mine, return negative float
-
-    def max_value(self, state, depth):
-        best_state = state
-        if self.game_value(state) != 0:
-            return self.game_value(state),state
-
-        if depth >= 3:
-            return self.heuristic_game_value(state,self.my_piece)
-
-        else:
-            a = float('-Inf')
-            for s in self.succ(state, self.my_piece):
-                val = self.min_Value(s,depth+1)
-                if val[0] > a:
-                    a = val[0]
-                    best_state = s
-        return a, best_state
-
-    def min_Value(self, state,depth):
-        best_state = state
-        if self.game_value(state) != 0:
-            return self.game_value(state),state
-        
-        if depth >= 3:
-            return self.heuristic_game_value(state, self.opp)
-
-        else:
-            b = float('Inf')
-            for s in self.succ(state, self.opp):
-                val = self.max_value(s,depth+1)
-                if val[0] < b:
-                    b = val[0]
-                    best_state = s
-        return b, best_state
-
-    def up(self, k, i, j):
-        state = copy.deepcopy(k)
-        if i - 1 >= 0 and state[i - 1][j] == ' ':
-            state[i][j], state[i - 1][j] = state[i - 1][j], state[i][j]
-            return state
-
-    def down(self, k, i, j):
-        state = copy.deepcopy(k)
-        if i + 1 < len(state) and state[i + 1][j] == ' ':
-            state[i][j], state[i + 1][j] = state[i + 1][j], state[i][j]
-            return state
-
-    def left(self, k, i, j):
-        state = copy.deepcopy(k)
-        if j - 1 >= 0 and state[i][j - 1] == ' ':
-            state[i][j], state[i][j - 1] = state[i][j - 1], state[i][j]
-            return state
-
-    def right(self, k, i, j):
-        state = copy.deepcopy(k)
-        if j + 1 < len(state) and state[i][j + 1] == ' ':
-            state[i][j], state[i][j + 1] = state[i][j + 1], state[i][j]
-            return state
-
-    def topleft(self, k, i, j):
-        state = copy.deepcopy(k)
-        if i - 1 >= 0 and j - 1 >= 0 and state[i - 1][j - 1] == ' ':
-            state[i][j], state[i - 1][j - 1] = state[i - 1][j - 1], state[i][j]
-            return state
-
-    def topright(self, k, i, j):
-        state = copy.deepcopy(k)
-        if i - 1 >= 0 and j + 1 < len(state) and state[i - 1][j + 1] == ' ':
-            state[i][j], state[i - 1][j + 1] = state[i - 1][j + 1], state[i][j]
-            return state
-
-    def bottomleft(self, k, i, j):
-        state = copy.deepcopy(k)
-        if i + 1 < len(state) and j - 1 >= 0 and state[i + 1][j - 1] == ' ':
-            state[i][j], state[i + 1][j - 1] = state[i + 1][j - 1], state[i][j]
-            return state
-
-    def bottomright(self, k, i, j):
-        state = copy.deepcopy(k)
-        if i + 1 < len(state) and j + 1 < len(state) and state[i + 1][j + 1] == ' ':
-            state[i][j], state[i + 1][j + 1] = state[i + 1][j + 1], state[i][j]
-            return state
 
 
 ############################################################################
